@@ -1,0 +1,23 @@
+---
+- name: Provision a VPS
+  hosts: all
+  remote_user: "{{ server_user_username }}"
+
+  vars:
+  vars_files:
+    - ../vault
+
+  pre_tasks:
+    - name: "apt : Upgrade all apt packages"
+      become: true
+      apt:
+        update_cache: true
+        force_apt_get: true
+        autoremove: true
+        autoclean: true
+        cache_valid_time: 43200
+
+  tasks:
+    - name: check SSH connection
+      ping:
+  roles:

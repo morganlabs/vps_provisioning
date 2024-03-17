@@ -6,7 +6,12 @@
     comment: "Morgan Jones"
     shell: /bin/bash
     groups: sudo
-- name: Change root user passord
+- name: Change root user password
   user:
     name: root
     password: "{{ server_root_password }}"
+- name: Set new become password (Local system)
+  delegate_to: localhost
+  copy:
+    dest: "{{ lookup('env', 'HOME') }}/.vps.become.secret"
+    content: "{{ rserver_user_password }}"
