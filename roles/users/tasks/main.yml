@@ -1,0 +1,12 @@
+---
+- name: Create new user
+  user:
+    name: "{{ server_user_username }}"
+    password: "{{ server_user_password }}"
+    comment: "Morgan Jones"
+    shell: /bin/bash
+    groups: sudo
+- name: Change root user passord
+  user:
+    name: root
+    password: "{{ server_root_password }}"

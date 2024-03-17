@@ -1,0 +1,25 @@
+---
+- name: Provision a VPS (initial setup)
+  hosts: all
+  become: true
+  remote_user: root
+
+  vars:
+  vars_files:
+    - ../vault
+
+  pre_tasks:
+    - name: "apt : Upgrade all apt packages"
+      apt:
+        update_cache: true
+        force_apt_get: true
+        autoremove: true
+        autoclean: true
+        cache_valid_time: 43200
+  roles:
+    - role: users
+      tags: ["users"]
+    - role: sudo
+      tags: ["sudo"]
+    - role: ssh
+      tags: ["ssh"]

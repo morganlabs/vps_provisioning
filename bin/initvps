@@ -1,0 +1,11 @@
+#!/bin/bash
+
+cd "$(dirname "$0")/.."
+
+SERVER_IP=`bin/get_server_ip.sh`
+
+ansible-playbook playbooks/init.yml \
+    -i "$SERVER_IP," \
+    --ask-pass \
+    "$@"
+

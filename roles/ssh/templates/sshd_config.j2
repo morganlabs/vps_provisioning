@@ -1,0 +1,6 @@
+Include /etc/ssh/sshd_config.d/*.conf
+
+Port                    {{ ssh_port }}
+PubkeyAuthentication    yes
+PasswordAuthentication  no
+PermitRootLogin         no

@@ -1,0 +1,13 @@
+---
+- name: Install
+  apt:
+    name: sudo
+    state: present
+- name: Add sudo group to sudoers file
+  lineinfile:
+    path: /etc/sudoers
+    line: '%sudo ALL=(ALL) ALL'
+    validate: 'visudo -cf %s'
+    state: present
+    regexp: '^%sudo\s'
+    backup: yes
