@@ -17,7 +17,9 @@
         autoclean: true
         cache_valid_time: 43200
 
-  tasks:
-    - name: check SSH connection
-      ping:
   roles:
+    - { name: firewall, tags: ["firewall"] }
+    - { name: fail2ban, tags: ["fail2ban"] }
+    - { name: docker, tags: ["docker"] }
+    - { name: portainer, tags: ["portainer"] }
+    - { name: traefik, tags: ["traefik"] }

@@ -1,0 +1,20 @@
+---
+- name: Install
+  become: true
+  apt:
+    name: fail2ban
+    state: present
+- name: Configuration
+  become: true
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/fail2ban/{{ item }}"
+  loop:
+    - "fail2ban.local"
+    - "jail.local"
+- name: Enable
+  become: true
+  systemd:
+    name: fail2ban
+    enabled: true
+    state: started

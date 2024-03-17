@@ -1,0 +1,33 @@
+---
+- name: Pull
+  docker_image:
+    name: traefik
+    source: pull
+- name: Configuration folder
+  become: true
+  file:
+    path: /etc/traefik
+    state: directory
+- name: Configuration
+  become: true
+  template:
+    src: traefik.yml.j2
+    dest: /etc/traefik/traefik.yml
+- name: Create network
+  docker_network:
+    name: traefik
+- name: Deploy
+  docker_container:
+    name: traefik
+    image: traefik
+    restart_policy: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik_certs:/etc/traefik/certs
+      - /etc/traefik:/etc/traefik
+    networks:
+      - name: traefik
