@@ -1,0 +1,17 @@
+---
+- name: Pull
+  docker_image:
+    name: mariadb
+    source: pull
+- name: Deploy
+  docker_container:
+    name: mariadb
+    image: mariadb
+    restart_policy: always
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ mariadb_root_password }}"
+      MYSQL_DATABASE: mybb
+      MYSQL_USER: "{{ mariadb_username }}"
+      MYSQL_PASSWORD: "{{ mariadb_password }}"
+  networks:
+    - name: nextcloud

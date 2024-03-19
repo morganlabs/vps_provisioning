@@ -1,0 +1,111 @@
+---
+- name: Pull
+  docker_image:
+    name: nextcloud
+    source: pull
+- name: Deploy
+  docker_container:
+    name: nextcloud
+    image: nextcloud
+    restart_policy: always
+    volumes:
+      - nextcloud_data:/var/www/html
+    env:
+      MYSQL_HOST: mariadb
+      MYSQL_DATABASE: maria
+      MYSQL_USER: "{{ mariadb_username }}"
+      MYSQL_PASSWORD: "{{ mariadb_password }}"
+
+      REDIS_HOST: redis.redis
+      REDIS_HOST_PASSWORD: "{{ redis_password }}"
+
+      NEXTCLOUD_TRUSTED_DOMAINS: "cloud.{{ server_url }}"
+      OVERWRITECLIURL: "https://cloud.{{ server_url }}"
+      OVERWRITEPROTOCOL: https
+        
+      NEXTCLOUD_ADMIN_USER: "{{ nextcloud_admin_username }}"
+      NEXTCLOUD_ADMIN_PASSWORD: "{{ nextcloud_admin_password }}"
+
+      APCU_ENABLED: "true"
+      PHP_MEMORY_LIMIT: 1024M
+      TZ: Europe/London
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.nextcloud.entrypoints: "websecure"
+      traefik.http.routers.nextcloud.rule: "Host(`cloud.{{ server_url }}`)"
+      traefik.http.routers.nextcloud.tls: "true"
+      traefik.http.routers.nextcloud.tls.certresolver: "letsencrypt"
+      traefik.http.routers.nextcloud.middlewares: "nextcloud-redirect, hsts@file"
+      traefik.http.routers.nextcloud-router.rule: "PathPrefix(`/`)"
+
+      traefik.http.middlewares.nextcloud-redirect.redirectregex.permanent: "true"
+      traefik.http.middlewares.nextcloud-redirect.redirectregex.regex: "^/.well-known/(carddav|caldav|webfinger|nodeinfo)$"
+      traefik.http.middlewares.nextcloud-redirect.redirectregex.replacement: "/index.php/.well-known/$$1"
+
+      traefik.http.services.nextcloud.loadbalancer.server.port: "80"
+    networks:
+      - name: redis
+      - name: maria
+      - name: onlyoffice
+      - name: traefik
+
+- name: Set up Nextcloud cron job
+  cron:
+    name: "Run Nextcloud background job runner"
+    minute: "*/5"
+    job: "docker exec --user www-data nextcloud php cron.php"
+
+- name: Settings
+  shell: "docker exec -u www-data nextcloud php occ {{ item }}"
+  with_items:
+    - background:cron
+    - config:system:set trusted_proxies 0 --value="172.64.0.0/13"
+    - config:system:set default_phone_region --value="GB"
+    - config:system:set default_timezone --value="Europe/London"
+    - config:system:set default_locale --value="en_GB"
+    - config:system:set maintenance_window_start --type=integer --value=1
+
+    - theming:config name "Nextcloud"
+    - theming:config disable-user-theming yes
+    - theming:config background backgroundColor
+    - theming:config color "#28053C"
+    - theming:config url "https://cloud.{{ server_url }}"
+    - theming:config slogan "Server might be down at some point, depends how it feels."
+
+    - config:system:set skeletondirectory --value=""
+    - config:system:set knowledgebaseenabled --value=false
+    - config:system:set trashbin_retention_obligation --value="16, 32"
+    - config:system:set check_for_working_wellknown_setup --value=false
+
+    - config:app:set dav system_addressbook_exposed --value="no"
+
+    - config:system:set mail_smtpmode --value="smtp"
+    - config:system:set mail_smtphost --value="{{ smtp_host }}"
+    - config:system:set mail_smtpport --value="{{ smtp_port }}"
+    - config:system:set mail_smtpname --value="{{ smtp_auth_username }}"
+    - config:system:set mail_smtppassword --value="{{ smtp_auth_password }}"
+    - config:system:set mail_domain --value="{{ server_url }}"
+    - config:system:set mail_from_address --value="nextcloud"
+    - config:system:set mail_smtptimeout --value="30"
+
+- name: Enable Apps
+  shell: docker exec -u www-data nextcloud php occ app:install "{{ item }}"
+  with_items:
+    - contacts
+    - calendar
+    - tasks
+    - unroundedcorners
+    - twofactor_webauthn
+    - maps
+    - external
+    # - news
+    - onlyoffice
+    - integration_github
+    - integration_mastodon
+
+- name: Disable apps
+  shell: docker exec -u www-data extcloud php occ app:disable "{{ item }}"
+  with_items:
+    - contactsinteraction
+    - circles
+

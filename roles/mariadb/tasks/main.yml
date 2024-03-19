@@ -1,0 +1,22 @@
+---
+- name: Pull
+  docker_image:
+    name: mariadb
+    source: pull
+- name: Create network
+  docker_network:
+    name: maria
+- name: Deploy
+  docker_container:
+    name: mariadb
+    image: mariadb
+    restart_policy: always
+    volumes:
+      - maria_data:/var/lib/mysql
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ mariadb_root_password }}"
+      MYSQL_DATABASE: maria
+      MYSQL_USER: "{{ mariadb_username }}"
+      MYSQL_PASSWORD: "{{ mariadb_password }}"
+    networks:
+      - name: maria

@@ -1,0 +1,38 @@
+---
+- name: Pull
+  docker_image:
+    name: linuxserver/wireguard
+    source: pull
+- name: Deploy
+  docker_container:
+    name: wireguard
+    image: linuxserver/wireguard
+    restart_policy: unless-stopped
+    env:
+      PUID: "{{ ansible_facts.user_uid }}"
+      GUID: "{{ ansible_facts.user_gid }}"
+      TZ: Europe/London
+      SERVERURL: auto
+      SERVERPORT: "51820"
+      PEERS: "1"
+      PEERDNS: auto
+      INTERNAL_SUBNET: 10.13.13.0
+    labels:
+      traefik.enable : "true"
+      traefik.http.routers.wireguard.entrypoints : "websecure"
+      traefik.http.routers.wireguard.rule : "Host(`vpn.{{ server_url }}`)"
+      traefik.http.routers.wireguard.tls : "true"
+      traefik.http.routers.wireguard.tls.certresolver : "letsencrypt"
+      traefik.http.services.wireguard.loadbalancer.server.port : "51820"
+    volumes:
+      - wireguard_config:/config
+      - wireguard_modules:/modules
+    ports:
+      - 51820:51820/udp
+    capabilities:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: 1
+    networks:
+      - name: traefik

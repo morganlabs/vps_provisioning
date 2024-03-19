@@ -23,3 +23,8 @@
     - { name: docker, tags: ["docker"] }
     - { name: portainer, tags: ["portainer"] }
     - { name: traefik, tags: ["traefik"] }
+    - { name: mariadb, tags: ["mariadb"] }
+    - { name: redis, tags: ["redis"] }
+    - { name: nextcloud, tags: ["nextcloud"] }
+    - { name: onlyoffice, tags: ["onlyoffice"] }
+    # - { name: wireguard, tags: ["wireguard"] } # Will finish at some point

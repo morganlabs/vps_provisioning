@@ -20,7 +20,10 @@
   docker_container:
     name: traefik
     image: traefik
+    network_mode: host
     restart_policy: always
+    env:
+      TZ: "Europe/London"
     ports:
       - "80:80"
       - "443:443"
@@ -29,5 +32,3 @@
       - /var/run/docker.sock:/var/run/docker.sock
       - traefik_certs:/etc/traefik/certs
       - /etc/traefik:/etc/traefik
-    networks:
-      - name: traefik
