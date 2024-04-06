@@ -1,9 +1,95 @@
 ---
-- name: Pull
+- name: Pull MariaDB
+  docker_image:
+    name: mariadb
+    source: pull
+- name: Create network for MariaDB
+  docker_network:
+    name: nextcloud-maria
+- name: Deploy MariaDB
+  docker_container:
+    name: nextcloud-maria
+    image: mariadb
+    restart_policy: always
+    volumes:
+      - nextcloud_maria_data:/var/lib/mysql
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ nextcloud_mariadb_root_password }}"
+      MYSQL_DATABASE: maria
+      MYSQL_USER: "{{ nextcloud_mariadb_username }}"
+      MYSQL_PASSWORD: "{{ nextcloud_mariadb_password }}"
+      TZ: "Europe/London"
+    networks:
+      - name: nextcloud-maria
+
+- name: Pull Redis
+  docker_image:
+    name: redis/redis-stack-server
+    source: pull
+- name: Enable Memory Overcommit (host)
+  become: true
+  lineinfile:
+    dest: /etc/sysctl.conf
+    line: "vm.overcommit_memory = 1"
+- name: Enable Memory Overcommit (on-the-fly)
+  become: true
+  shell: sysctl -w vm.overcommit_memory=1
+- name: Create network for Redis
+  docker_network:
+    name: nextcloud-redis
+- name: Deploy Redis
+  docker_container:
+    name: nextcloud-redis
+    image: redis
+    restart_policy: always
+    command: redis-server --requirepass "{{ nextcloud_redis_password }}"
+    volumes:
+      - nextcloud_redis_data:/data
+    networks:
+      - name: nextcloud-redis
+
+- name: Pull Onlyoffice
+  docker_image:
+    name: onlyoffice/documentserver
+    source: pull
+- name: Create network for Onlyoffice
+  docker_network:
+    name: onlyoffice
+- name: Deploy Onlyoffice
+  docker_container:
+    name: documentserver
+    image: onlyoffice/documentserver
+    restart_policy: always
+    volumes:
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_lib:/var/lib/olyoffice
+      - onlyoffice_logs:/var/log/onlyoffice
+    env:
+      PUID: "1"
+      GUID: "1"
+      JWT_ENABLED: "true"
+      JWT_SECRET: "{{ onlyoffice_jwt_secret }}"
+      JWT_HEADER: AuthorizationJwt
+      JWT_IN_BODY: "true"
+      TZ: "Europe/London"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.onlyoffice.tls: "true"
+      traefik.http.routers.onlyoffice.entrypoints: "websecure"
+      traefik.http.routers.onlyoffice.rule: "Host(`office.{{ server_url }}`)"
+      traefik.http.routers.onlyoffice.tls.certresolver: "letsencrypt"
+      traefik.http.routers.onlyoffice.middlewares: "onlyoffice-headers"
+      traefik.http.middlewares.onlyoffice-headers.headers.customresponseheaders.Access-Control-Allow-Origin: "*"
+      traefik.http.middlewares.onlyoffice-headers.headers.customrequestheaders.X-Forwarded-Proto: "https"
+      traefik.http.services.onlyoffice.loadbalancer.server.port: "80"
+    networks:
+      - name: onlyoffice
+
+- name: Pull Nextcloud
   docker_image:
     name: nextcloud
     source: pull
-- name: Deploy
+- name: Deploy Nextcloud
   docker_container:
     name: nextcloud
     image: nextcloud
@@ -11,13 +97,13 @@
     volumes:
       - nextcloud_data:/var/www/html
     env:
-      MYSQL_HOST: mariadb
+      MYSQL_HOST: nextcloud-maria.nextcloud-maria
       MYSQL_DATABASE: maria
-      MYSQL_USER: "{{ mariadb_username }}"
-      MYSQL_PASSWORD: "{{ mariadb_password }}"
+      MYSQL_USER: "{{ nextcloud_mariadb_username }}"
+      MYSQL_PASSWORD: "{{ nextcloud_mariadb_password }}"
 
-      REDIS_HOST: redis.redis
-      REDIS_HOST_PASSWORD: "{{ redis_password }}"
+      REDIS_HOST: nextcloud-redis.nextcloud-redis
+      REDIS_HOST_PASSWORD: "{{ nextcloud_redis_password }}"
 
       NEXTCLOUD_TRUSTED_DOMAINS: "cloud.{{ server_url }}"
       OVERWRITECLIURL: "https://cloud.{{ server_url }}"
@@ -44,10 +130,9 @@
 
       traefik.http.services.nextcloud.loadbalancer.server.port: "80"
     networks:
-      - name: redis
-      - name: maria
+      - name: nextcloud-redis
+      - name: nextcloud-maria
       - name: onlyoffice
-      - name: traefik
 
 - name: Set up Nextcloud cron job
   cron:
@@ -102,6 +187,8 @@
     - onlyoffice
     - integration_github
     - integration_mastodon
+    - announcementcenter
+    - impersonate
 
 - name: Disable apps
   shell: docker exec -u www-data extcloud php occ app:disable "{{ item }}"

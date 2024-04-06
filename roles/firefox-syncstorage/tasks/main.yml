@@ -1,0 +1,52 @@
+---
+- name: Pull MariaDB
+  docker_image:
+    name: mariadb
+    source: pull
+- name: Create network for MariaDB
+  docker_network:
+    name: firefox-maria
+- name: Deploy MariaDB
+  docker_container:
+    name: firefox-maria
+    image: mariadb
+    restart_policy: always
+    volumes:
+      - firefox_maria_data:/var/lib/mysql
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ firefox_mariadb_root_password }}"
+      MYSQL_DATABASE: maria
+      MYSQL_USER: "{{ firefox_mariadb_username }}"
+      MYSQL_PASSWORD: "{{ firefox_mariadb_password }}"
+      TZ: "Europe/London"
+    networks:
+      - name: firefox-maria
+
+- name: Pull Syncstorage
+  docker_image:
+    name: mozilla/syncstorage-rs
+    source: pull
+- name: Deploy
+  docker_container:
+    name: firefox-syncstorage
+    image: mozilla/syncstorage-rs
+    restart_policy: always
+    volumes:
+      - maria_data:/var/lib/mysql
+    ports:
+      - 1234:8000
+    env:
+      SYNC_DATABASE_URL: http://firefox-maria.firefox-maria
+      MYSQL_DATABASE: maria
+      MYSQL_USER: "{{ firefox_mariadb_username }}"
+      MYSQL_PASSWORD: "{{ firefox_mariadb_password }}"
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.firefox.entrypoints: "websecure"
+      traefik.http.routers.firefox.rule: "Host(`firefox-syncstorage.{{ server_url }}`)"
+      traefik.http.routers.firefox.tls: "true"
+      traefik.http.routers.firefox.tls.certresolver: "letsencrypt"
+      traefik.http.routers.firefox-router.rule: "PathPrefix(`/`)"
+      traefik.http.services.firefox.loadbalancer.server.port: "5000"
+    networks:
+      - name: firefox-maria
